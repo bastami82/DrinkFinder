@@ -1,0 +1,47 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "_main" , "pr/**/*" , "release/**/*" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: --== Setup local.properties ==--
+        run: |
+          echo "DEBUG_KEYSTORE_PASSWORD=${{ secrets.DEBUG_KEYSTORE_PASSWORD }}" > local.properties
+          echo "API_URL=${{ secrets.API_URL }}" >> local.properties
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build apk,aab
+        run: |
+          ./gradlew assembleDebug
+          ./gradlew bundleDebug
+      - name: Rename APK
+        run: |
+          BRANCH_NAME=$(echo "${GITHUB_REF##*/}" | tr '/' '-')  # Extract the branch name
+          mv drinkFinderApp/build/outputs/apk/debug/drinkFinderApp-debug.apk drinkFinderApp/build/outputs/apk/debug/drinkFinderApp-debug-${BRANCH_NAME}.apk
+          mv drinkFinderApp/build/outputs/bundle/debug/drinkFinderApp-debug.aab drinkFinderApp/build/outputs/bundle/debug/drinkFinderApp-debug-${BRANCH_NAME}.aab
+      - name: upload apk
+        uses: actions/upload-artifact@v4
+        with:
+         name: download APK
+         path: drinkFinderApp/build/outputs/apk/debug/drinkFinderApp-debug*.apk
+
+      - name: upload aab
+        uses: actions/upload-artifact@v4
+        with:
+          name: download AAB
+          path: drinkFinderApp/build/outputs/bundle/debug/drinkFinderApp-debug*.aab
